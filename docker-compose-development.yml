@@ -68,7 +68,7 @@ services:
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
-      - "8080:8080"
+      - "8081:8080"
     networks:
       - router_net
     volumes:
@@ -340,5 +340,5 @@ services:
     environment:
       sdkEnv: local
       envSdkUrl: http://localhost:9050
-      envBackendUrl: http://localhost:8080
+      envBackendUrl: http://localhost:8081
       envLoggingUrl: http://localhost:8207
