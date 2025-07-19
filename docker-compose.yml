@@ -1,3 +1,4 @@
+```yaml
 volumes:
   pg_data:
   redisinsight_store:
@@ -94,6 +95,12 @@ services:
     volumes:
       - ./config:/local/config
       - ./files:/local/bin/files
+    environment:
+      - API_KEY=your_api_key # Replace with your Hyperswitch API key
+      - PUBLISHABLE_KEY=your_publishable_key # Replace with your Hyperswitch publishable key
+      - RESPONSE_HASH_KEY=your_response_hash_key # Replace with your Hyperswitch response hash key
+      - BASE_URL=https://hyperswitch.trendss.net/api
+      - WEBHOOK_URL=https://hyperswitch.trendss.net/api/webhook
     depends_on:
       pg:
         condition: service_healthy
@@ -102,7 +109,12 @@ services:
       migration_runner:
         condition: service_completed_successfully
     labels:
-      logs: "promtail"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hyperswitch-server.rule=Host(`hyperswitch.trendss.net`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.hyperswitch-server.entrypoints=websecure"
+      - "traefik.http.routers.hyperswitch-server.tls=true"
+      - "traefik.http.services.hyperswitch-server.loadbalancer.server.port=8080"
+      - logs: "promtail"
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
       interval: 5s
@@ -186,9 +198,14 @@ services:
       - ENABLE_LOGGING=true
       - SDK_ENV=local
       - ENV_LOGGING_URL=http://localhost:3103
-      - ENV_BACKEND_URL=http://localhost:8080
+      - ENV_BACKEND_URL=https://hyperswitch.trendss.net/api
     labels:
-      logs: "promtail"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hyperswitch-web.rule=Host(`hyperswitch.trendss.net`) && PathPrefix(`/web`)"
+      - "traefik.http.routers.hyperswitch-web.entrypoints=websecure"
+      - "traefik.http.routers.hyperswitch-web.tls=true"
+      - "traefik.http.services.hyperswitch-web.loadbalancer.server.port=9050"
+      - logs: "promtail"
 
   ### Control Center
   hyperswitch-control-center:
@@ -198,6 +215,7 @@ services:
       - "9000:9000"
     environment:
       - configPath=/tmp/dashboard-config.toml
+      - DASHBOARD_URL=https://hyperswitch.trendss.net/dashboard
     volumes:
       - ./config/dashboard.toml:/tmp/dashboard-config.toml
     depends_on:
@@ -206,7 +224,12 @@ services:
       hyperswitch-web:
         condition: service_started
     labels:
-      logs: "promtail"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hyperswitch-control-center.rule=Host(`hyperswitch.trendss.net`) && PathPrefix(`/dashboard`)"
+      - "traefik.http.routers.hyperswitch-control-center.entrypoints=websecure"
+      - "traefik.http.routers.hyperswitch-control-center.tls=true"
+      - "traefik.http.services.hyperswitch-control-center.loadbalancer.server.port=9000"
+      - logs: "promtail"
 
   create-default-user:
     image: curlimages/curl-base:latest
@@ -237,7 +260,7 @@ services:
       create-default-user:
         condition: service_completed_successfully
       hyperswitch-server:
-        condition: service_healthy # Ensures it only starts when `hyperswitch-server` is healthy
+        condition: service_healthy
     environment:
       - ONE_CLICK_SETUP=${ONE_CLICK_SETUP:-false}
     entrypoint:
@@ -292,6 +315,7 @@ services:
       echo Creating a cluster with $$HOSTS
       redis-cli --cluster create $$HOSTS --cluster-yes
       '
+
   ### Monitoring
   grafana:
     image: grafana/grafana:latest
@@ -358,8 +382,8 @@ services:
     profiles:
       - monitoring
     ports:
-      - "3200" # tempo
-      - "4317" # otlp grpc
+      - "3200"
+      - "4317"
     restart: unless-stopped
 
   redis-insight:
@@ -406,7 +430,6 @@ services:
       - ./monitoring/kafka-script.sh:/tmp/update_run.sh
     command: 'bash -c ''if [ ! -f /tmp/update_run.sh ]; then echo "ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'''
 
-  # Kafka UI for debugging kafka queues
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     ports:
@@ -498,10 +521,16 @@ services:
       hyperswitch-web:
         condition: service_started
     environment:
-      - HYPERSWITCH_PUBLISHABLE_KEY=placeholder_publishable_key
-      - HYPERSWITCH_SECRET_KEY=placeholder_api_key
-      - PROFILE_ID=placeholder_profile_id
-      - HYPERSWITCH_CLIENT_URL=http://localhost:9050
-      - HYPERSWITCH_SERVER_URL=http://localhost:8080
+      - HYPERSWITCH_PUBLISHABLE_KEY=your_publishable_key # Replace with your Hyperswitch publishable key
+      - HYPERSWITCH_SECRET_KEY=your_api_key # Replace with your Hyperswitch API key
+      - PROFILE_ID=your_profile_id # Replace with your Hyperswitch profile ID
+      - HYPERSWITCH_CLIENT_URL=https://hyperswitch.trendss.net/web
+      - HYPERSWITCH_SERVER_URL=https://hyperswitch.trendss.net/api
     labels:
-      logs: "promtail"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hyperswitch-demo.rule=Host(`hyperswitch.trendss.net`) && PathPrefix(`/demo`)"
+      - "traefik.http.routers.hyperswitch-demo.entrypoints=websecure"
+      - "traefik.http.routers.hyperswitch-demo.tls=true"
+      - "traefik.http.services.hyperswitch-demo.loadbalancer.server.port=9060"
+      - logs: "promtail"
+```
